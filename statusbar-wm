@@ -1,0 +1,96 @@
+#! /bin/bash
+
+ups() {
+	ups="$(wc -l < /tmp/aurupdates*)"
+	if (( ups > 0 )); then
+		printf "%s" " ${ups}"
+	else
+		printf "%s" " 0"
+	fi
+}
+
+aur() {
+	aur="$(awk '$0 !~ /^No /' /tmp/aurphans* | wc -l)"
+	if (( aur > 0 )); then
+		printf "%s" " ∆ "
+	fi
+}
+
+pac() {
+	pup="$(pacman -Qqu --dbpath /tmp/checkup-db-$(id -u -n) | wc -l)"
+	if (( $pup > 0 )); then
+		printf "%s" " ${pup} "
+	else
+		printf " 0 "
+	fi
+}
+
+eml() {
+	ml="$(notmuch search tag:unread | wc -l)"
+	if (( ml > 0 )); then
+		printf "%s" " ${ml} "
+	else
+		printf " 0 "
+	fi
+}
+
+cpu() {
+	read cpu a b c previdle rest < /proc/stat
+	prevtotal=$((a+b+c+previdle))
+	sleep 0.5
+	read cpu a b c idle rest < /proc/stat
+	total=$((a+b+c+idle))
+	cpu="$((100*( (total-prevtotal) - (idle-previdle) ) / (total-prevtotal) ))"
+	printf "%s" " ${cpu}% "
+}
+
+mem() {
+	mem="$(awk '/^Mem/ {print $3}' <(free -m))"
+	printf "%s" " ${mem} "
+}
+
+hdd() {
+	cap="$(df -h --total | awk 'END {print $5}')"
+	printf  "%s" " ${cap} "
+}
+
+con() {
+	sta=$(connmanctl state | sed -n '1s/State[^a-zA-Z]*//p' | tr -d ' ')
+	acp=$(connmanctl services | sed -n '/*A[OR]/p' | awk '{print $2}')
+	net="NET: ${sta} | ACCESS POINT: ${acp}"
+
+	printf "%s" " ${net^^} "
+}
+
+bat() {
+	interface="BAT0"
+	batt="/sys/class/power_supply/${interface}"
+
+	current=$(<"${batt}"/charge_now)
+	full=$(<"${batt}"/charge_full)
+	state=$(<"${batt}"/status)
+
+	charge=$(( current * 100 / full ))
+
+	case "${state}" in
+		Full) batstat="=" ;;
+		Charging) batstat="+" ;;
+		Discharging) batstat="-" ;;
+	esac
+
+	printf "%s" " ${batstat}${charge}% "
+}
+
+dte() {
+	dt=$(date +"%a %d-%m-%Y %H:%M")
+	printf "%s" " ${dt}"
+}
+
+while (( 1 )); do
+	time=$(date +"%a %d-%m-%Y %H:%M")
+	batt=$(bat)
+	net=$(con)
+	printf "%b" "BATT:$(bat)| HDD:$(hdd)| MEM:$(mem)| CPU:$(cpu)|$(con)| EML: $(eml)| PKG:$(pac)AUR:$(ups)$(aur) |$(dte)"
+	printf "\n"
+	sleep 1
+done

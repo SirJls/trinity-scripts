@@ -1,0 +1,15 @@
+#! /bin/sh
+
+PID=$(pidof mbsync)
+
+[ -n "$PID" ] && exit 1
+
+sta=$(connmanctl state | sed -n '1s/State[^a-zA-Z]*//p' | tr -d ' ')
+
+if test $sta = "online"; then
+	sh /usr/local/bin/msmtp-runqueue.sh
+	mbsync -a -q -c ~/.mbsyncrc
+	gpg -d ~/Dropbox/Sensitive/notmuch-poll.asc 2>/dev/null | sh
+fi
+
+exit 0

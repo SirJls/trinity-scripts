@@ -1,0 +1,98 @@
+#! /bin/bash
+
+SECONDS=0
+
+set -e
+
+log() {
+	local level=${1?}
+	shift
+	local code=''
+	local msg=">>> $*"
+	msg_array=($msg)
+	msg=${msg_array[@]}
+	if [ -t 2 ]
+	then
+		case "$level" in
+			INFO) code=36 ;;
+			DEBUG) code=30 ;;
+			WARN) code=33 ;;
+			ERROR) code=31 ;;
+			SUCCESS) code=32 ;;
+			*) code=0  ;;
+		esac
+		echo -e "\e[${code}m${msg}\e[0m"
+	else
+		echo "$msg"
+	fi >&2
+}
+
+log INFO "Finding dotfiles, builds and script directories..."
+
+SCRIPTS="$(realpath $(dirname ${BASH_SOURCE}))"
+MACHINE_DIR="$(realpath $(dirname $SCRIPTS))"
+DOTFILES_DIR=$(find $MACHINE_DIR -maxdepth 1 -type d -name "*dotfiles")
+
+OLD_DOTFILES="${HOME}/.dotfiles_old"
+INSTALL_FILE=$(ls -A ${DOTFILES_DIR}/install)
+
+if [[ ! -d $OLD_DOTFILES ]]; then
+	log NORM "Creating directory ${OLD_DOTFILES}."
+	mkdir $OLD_DOTFILES
+fi
+
+if [[ ! -z $INSTALL_FILE ]]; then
+	log SUCCESS "Found install file: ${INSTALL_FILE}!\n"
+	while read line; do
+		COMMENT=$(echo $line | awk '{ if (/^#/) { print "0" } else { print "1"} }')
+		EMPTY=$(echo $line | awk '{ if (/./) { print "1" } else { print "0" } }')
+		if (( $COMMENT == 1 )) && (( $EMPTY == 1 )); then
+			FILE_OR_DIR=$line
+			STRIPPED_FILE=${FILE_OR_DIR##*/}
+
+			yes | rm -rf  "${OLD_DOTFILES}/.*"
+			yes | rm -rf "${OLD_DOTFILES}/*"
+
+			log NORM "Moving ${STRIPPED_FILE} -> ${OLD_DOTFILES}"
+			if test -L "${HOME}/.${STRIPPED_FILE}" ; then
+				mv "${HOME}/.${STRIPPED_FILE}" "${OLD_DOTFILES}"
+			fi
+
+			log NORM "Symbolic link ${DOTFILES_DIR}/${FILE_OR_DIR} -> ${HOME}/.${STRIPPED_FILE}"
+
+			# alias file for mutt, will be sourced by my configration, comment when not needed.
+			if test "${FILE_OR_DIR%%/*}" = "mutt"                            &&
+			       	! test -f "${DOTFILES_DIR}/${FILE_OR_DIR%%/*}/alias";    then
+				touch "${DOTFILES_DIR}/${FILE_OR_DIR%%/*}/alias"
+			fi
+
+			# plugin & backup directory for vim, comment when not needed.
+			if test "${FILE_OR_DIR%%/*}" = "vim"                             &&
+			       	! test -d "${DOTFILES_DIR}/${FILE_OR_DIR%%/*}/plugged"   &&
+				! test -d "${DOTFILES_DIR}/${FILE_OR_DIR%%/*}/backup"; then
+				mkdir "${DOTFILES_DIR}/${FILE_OR_DIR%%/*}/plugged"
+				mkdir "${DOTFILES_DIR}/${FILE_OR_DIR%%/*}/backup"
+			fi
+
+			# directory for where I keep my shell history, comment when not needed.
+			if test "${FILE_OR_DIR%%/*}" = "zsh"                             &&
+			       	! test -d "${DOTFILES_DIR}/${FILE_OR_DIR%%/*}/history"; then
+				mkdir "${DOTFILES_DIR}/${FILE_OR_DIR%%/*}/history"
+			fi
+
+			# isync's mbsync is used to sync my e-mail, comment when not needed.
+			if test "$FILE_OR_DIR" = "isync" && ( hash systemctl );         then
+				systemctl --user enable mbsync.timer
+			fi
+
+			ln -s "${DOTFILES_DIR}/${FILE_OR_DIR}" "${HOME}/.${STRIPPED_FILE}"
+
+		fi
+	done < $INSTALL_FILE
+fi
+
+ELAPSED="Elapsed time: $(($SECONDS / 3600))hrs $((($SECONDS / 60) % 60))min $(($SECONDS % 60))sec"
+
+log INFO "${ELAPSED}"
+
+exit 0

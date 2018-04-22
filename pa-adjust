@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# original author SirCmpwn
+
+SINK_NAME=$(pactl list short sinks | grep RUNNING | awk '{print $2}')
+
+MUTE_STATE=`pacmd dump | grep -P "^set-sink-mute $SINK_NAME\s+" | perl -p -n -e 's/.+\s(yes|no)$/$1/'`
+
+plus() {
+	pactl set-sink-volume $SINK_NAME +5%
+}
+
+minus() {
+	pactl set-sink-volume $SINK_NAME -5%
+}
+
+mute() {
+	if [ $MUTE_STATE = no ]; then
+		pactl set-sink-mute $SINK_NAME 1
+	elif [ $MUTE_STATE = yes ]; then
+		pactl set-sink-mute $SINK_NAME 0
+	fi
+}
+
+case "$1" in
+	plus)
+		plus
+		;;
+	minus)
+		minus
+		;;
+	mute)
+		mute
+		;;
+esac

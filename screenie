@@ -1,0 +1,14 @@
+#! /bin/sh
+
+PICTURES_DIR="${HOME}/pictures"
+SCREENSHOTS_DIR="${pictures}/screenshots"
+
+if ! test -d $PICTURES_DIR; then
+	mkdir -p $PICTURES
+fi
+
+if ! test -d "$SCREENSHOTS_DIR"; then
+	mkdir $SCREENSHOTS_DIR
+fi
+
+scrot "${SCREENSHOTS_DIR}/%d-%m-%Y-%T-screenshot.png"
