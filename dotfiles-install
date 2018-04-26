@@ -85,7 +85,17 @@ if [[ ! -z $INSTALL_FILE ]]; then
 				systemctl --user enable mbsync.timer
 			fi
 
+
 			ln -s "${DOTFILES_DIR}/${FILE_OR_DIR}" "${HOME}/.${STRIPPED_FILE}"
+
+			# this test has to be after the soft link above
+			# create from cert file to the weechat configuration
+			# directory, comment when not needed.
+			if test "$FILE_OR_DIR" = "weechat"                               &&
+				! test -d "${DOTFILES_DIR}/${FILE_OR_DIR%%/*}/certs";    then
+			        mkdir -p "${DOTFILES_DIR}/${FILE_OR_DIR%%/*}/certs"
+				ln -s "${HOME}/documents/certs/freenode.pem" "${HOME}/.weechat/certs/freenode.pem"
+			fi
 
 		fi
 	done < $INSTALL_FILE
