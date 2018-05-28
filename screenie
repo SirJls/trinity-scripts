@@ -1,7 +1,7 @@
 #! /bin/sh
 
 PICTURES_DIR="${HOME}/pictures"
-SCREENSHOTS_DIR="${pictures}/screenshots"
+SCREENSHOTS_DIR="${PICTURES_DIR}/screenshots"
 
 if ! test -d $PICTURES_DIR; then
 	mkdir -p $PICTURES
